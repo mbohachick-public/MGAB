@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "auth0-react-native": {
+      "source": "auth0/agent-skills",
+      "sourceType": "github",
+      "computedHash": "1c62ec8afe966c46711c3a8e0db79720ded41196cac23d75e986830b4c40d488"
+    }
+  }
+}
