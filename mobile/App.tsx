@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import {
@@ -22,13 +23,22 @@ import type { ItemListing } from './types/database';
 import { LoginScreen } from './screens/LoginScreen';
 import { AddItemScreen } from './screens/AddItemScreen';
 import { ListingScreen } from './screens/ListingScreen';
-
+import { RentItemScreen } from './screens/RentItemScreen';
+import { BookingInvoiceScreen } from './screens/BookingInvoiceScreen';
+import type { RentalDate } from './types/database';
 
 type AppStackParamList = {
   Home: undefined;
   Listing: undefined;
   AddItem: undefined;
   Details: { item: ItemListing };
+  RentItem: { item: ItemListing };
+  BookingInvoice: {
+    item: ItemListing;
+    booking: RentalDate;
+    days: number;
+    totalPrice: number;
+  };
 };
 
 type AuthStackParamList = {
@@ -104,51 +114,54 @@ const DetailsScreen: React.FC<DetailsScreenProps> = ({ route, navigation }) => {
         <View style={styles.header}>
           <Text style={styles.title}>Details</Text>
         </View>
-        <View style={styles.centerContent}>
-          <Text style={styles.detailsLabel}>Title</Text>
-          <Text style={styles.detailsText}>{item.title}</Text>
-
-          <Text style={styles.detailsLabel}>Description</Text>
-          <Text style={styles.detailsText}>{item.description}</Text>
-
-          <Text style={styles.detailsLabel}>Category</Text>
-          <Text style={styles.detailsText}>{item.category}</Text>
-
-          <Text style={styles.detailsLabel}>Price Per Day</Text>
-          <Text style={styles.detailsText}>{formattedPrice}</Text>
-
-          <Text style={styles.detailsLabel}>Status</Text>
-          <Text style={styles.detailsText}>{item.status}</Text>
-
-          <Text style={styles.detailsLabel}>Renter</Text>
-          <Text style={styles.detailsText}>{String(item.attributes?.renter ?? 'N/A')}</Text>
-
-          <Text style={styles.detailsLabel}>Available Date</Text>
-          <Text style={styles.detailsText}>{formattedDate}</Text>
-
-          {item.location && (
-            <>
-              <Text style={styles.detailsLabel}>Location</Text>
-              <Text style={styles.detailsText}>
-                {item.location.latitude.toFixed(5)}, {item.location.longitude.toFixed(5)}
-              </Text>
-            </>
-          )}
-
-          {hasCustomAttrs && (
-            <>
-              <Text style={styles.detailsLabel}>Attributes</Text>
-              {Object.entries(customAttrs).map(([key, value]) => (
-                <Text key={key} style={styles.detailsText}>
-                  {key}: {String(value)}
+        <ScrollView style={styles.detailsScroll} contentContainerStyle={styles.detailsContent}>
+          <View style={styles.detailsTable}>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsLabel}>Title</Text>
+              <Text style={styles.detailsValue}>{item.title}</Text>
+            </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsLabel}>Description</Text>
+              <Text style={styles.detailsValue}>{item.description}</Text>
+            </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsLabel}>Category</Text>
+              <Text style={styles.detailsValue}>{item.category}</Text>
+            </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsLabel}>Price Per Day</Text>
+              <Text style={styles.detailsValue}>{formattedPrice}</Text>
+            </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsLabel}>Status</Text>
+              <Text style={styles.detailsValue}>{item.status}</Text>
+            </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsLabel}>Renter</Text>
+              <Text style={styles.detailsValue}>{String(item.attributes?.renter ?? 'N/A')}</Text>
+            </View>
+            <View style={styles.detailsRow}>
+              <Text style={styles.detailsLabel}>Available Date</Text>
+              <Text style={styles.detailsValue}>{formattedDate}</Text>
+            </View>
+            {item.location && (
+              <View style={styles.detailsRow}>
+                <Text style={styles.detailsLabel}>Location</Text>
+                <Text style={styles.detailsValue}>
+                  {item.location.latitude.toFixed(5)}, {item.location.longitude.toFixed(5)}
                 </Text>
-              ))}
-            </>
-          )}
-
+              </View>
+            )}
+            {Object.entries(customAttrs).map(([key, value]) => (
+              <View key={key} style={styles.detailsRow}>
+                <Text style={styles.detailsLabel}>{key}</Text>
+                <Text style={styles.detailsValue}>{String(value)}</Text>
+              </View>
+            ))}
+          </View>
           {item.images && item.images.length > 0 && (
-            <>
-              <Text style={styles.detailsLabel}>Images</Text>
+            <View style={styles.detailsImagesSection}>
+              <Text style={styles.detailsImagesLabel}>Images</Text>
               {item.images.map((uri: string, i: number) => (
                 <Image
                   key={i}
@@ -157,10 +170,14 @@ const DetailsScreen: React.FC<DetailsScreenProps> = ({ route, navigation }) => {
                   resizeMode="cover"
                 />
               ))}
-            </>
+            </View>
           )}
-        </View>
+        </ScrollView>
         <View style={styles.actionsRow}>
+          <Button
+            title="Rent Item"
+            onPress={() => navigation.navigate('RentItem', { item })}
+          />
           <Button title="Go back" onPress={() => navigation.goBack()} />
         </View>
       </SafeAreaView>
@@ -175,6 +192,16 @@ const AppStackNavigator: React.FC = () => {
       <AppStack.Screen name="Listing" component={ListingScreen} options={{ title: 'Listings' }} />
       <AppStack.Screen name="AddItem" component={AddItemScreen} options={{ title: 'Add Item' }} />
       <AppStack.Screen name="Details" component={DetailsScreen} />
+      <AppStack.Screen
+        name="RentItem"
+        component={RentItemScreen}
+        options={{ title: 'Rent Item' }}
+      />
+      <AppStack.Screen
+        name="BookingInvoice"
+        component={BookingInvoiceScreen}
+        options={{ title: 'Booking Invoice', headerBackVisible: false }}
+      />
     </AppStack.Navigator>
   );
 };
@@ -202,13 +229,15 @@ const RootNavigator: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <ItemsProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
-      </ItemsProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ItemsProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </ItemsProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 };
 
@@ -304,16 +333,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 4,
   },
+  detailsScroll: {
+    flex: 1,
+  },
+  detailsContent: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  detailsTable: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
   detailsLabel: {
     fontSize: 14,
     color: '#6b7280',
-    marginTop: 8,
+    fontWeight: '500',
+    flex: 0.4,
   },
-  detailsText: {
+  detailsValue: {
     fontSize: 16,
     color: '#111827',
-    textAlign: 'center',
-    paddingHorizontal: 16,
+    flex: 0.6,
+    textAlign: 'right',
+  },
+  detailsImagesSection: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+  },
+  detailsImagesLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
+    marginBottom: 8,
   },
   detailImage: {
     width: 200,

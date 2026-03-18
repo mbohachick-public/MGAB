@@ -20,6 +20,30 @@ export type ItemListingAttributes = {
   [key: string]: unknown;
 };
 
+/** Matches rental_dates table - tracks when an item is rented */
+export type RentalDateRow = {
+  id: string;
+  item_listing_id: string;
+  start_date: string;
+  end_date: string;
+  renter_user_id: string | null;
+  status: 'booked' | 'available' | 'blocked' | 'cancelled';
+  notes: string | null;
+  created_at: string;
+};
+
+/** App-level rental date type */
+export type RentalDate = {
+  id: string;
+  itemListingId: string;
+  startDate: string;
+  endDate: string;
+  renterUserId: string | null;
+  status: 'booked' | 'available' | 'blocked' | 'cancelled';
+  notes: string | null;
+  createdAt: string;
+};
+
 /** App-level item type (normalized from DB) */
 export type ItemListing = {
   id: string;
