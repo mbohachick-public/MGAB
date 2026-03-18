@@ -145,21 +145,33 @@ export const BookingInvoiceScreen: React.FC<Props> = ({ route, navigation }) => 
         pricePerDayFormatted,
         totalFormatted,
       });
-      const { uri } = await Print.printToFileAsync({ html });
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Save Invoice',
-        });
-      } else if (Platform.OS === 'web') {
-        Alert.alert(
-          'Download',
-          'On web, use the browser print dialog (Ctrl/Cmd+P) and choose "Save as PDF" to download the invoice.',
-          [{ text: 'OK' }]
-        );
+
+      if (Platform.OS === 'web') {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+          printWindow.onafterprint = () => printWindow.close();
+        } else {
+          Alert.alert(
+            'Print',
+            'Please allow pop-ups and try again, or use Ctrl/Cmd+P to print this page.',
+            [{ text: 'OK' }]
+          );
+        }
       } else {
-        Alert.alert('Download', `Invoice saved to: ${uri}`, [{ text: 'OK' }]);
+        const { uri } = await Print.printToFileAsync({ html });
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Save Invoice',
+          });
+        } else {
+          Alert.alert('Download', `Invoice saved to: ${uri}`, [{ text: 'OK' }]);
+        }
       }
     } catch (e) {
       Alert.alert(

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -220,6 +221,7 @@ export const RentItemScreen: React.FC<Props> = ({ route, navigation }) => {
   });
   const [bookedDates, setBookedDates] = useState<{ startDate: string; endDate: string }[]>([]);
   const [loadingDates, setLoadingDates] = useState(true);
+  const [webSelectionStep, setWebSelectionStep] = useState<'start' | 'end'>('start');
   const dragAnchorRef = useRef<string | null>(null);
   const [agreementSigned, setAgreementSigned] = useState(false);
   const [agreementScrolledToEnd, setAgreementScrolledToEnd] = useState(false);
@@ -280,6 +282,37 @@ export const RentItemScreen: React.FC<Props> = ({ route, navigation }) => {
       runAvailabilityCheck();
     }
   }, [loadingDates, startDate, endDate, runAvailabilityCheck]);
+
+  const handleWebDayPress = useCallback(
+    (day: { dateString: string }) => {
+      const d = new Date(day.dateString);
+      d.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (d < today) return;
+      if (unavailableSet.has(day.dateString)) return;
+
+      if (webSelectionStep === 'start') {
+        setStartDate(d);
+        setEndDate(d);
+        setWebSelectionStep('end');
+        setAvailabilityChecked(false);
+        setAvailabilityMessage(null);
+      } else {
+        if (d < startDate) {
+          setStartDate(d);
+          setEndDate(d);
+          setAvailabilityChecked(false);
+          setAvailabilityMessage(null);
+        } else {
+          setEndDate(d);
+          setWebSelectionStep('start');
+          runAvailabilityCheck();
+        }
+      }
+    },
+    [webSelectionStep, startDate, unavailableSet, runAvailabilityCheck]
+  );
 
   const onDragStart = useCallback((dateString: string) => {
     const d = new Date(dateString);
@@ -395,10 +428,29 @@ export const RentItemScreen: React.FC<Props> = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Choose Rental Dates</Text>
           <Text style={styles.calendarLegend}>
-            Red = taken • Blue = your selection • Press and drag across dates
+            Red = taken • Blue = your selection •{' '}
+            {Platform.OS === 'web' ? 'Tap start date, then end date' : 'Press and drag across dates'}
           </Text>
           {loadingDates ? (
             <Text style={styles.loadingText}>Loading availability…</Text>
+          ) : Platform.OS === 'web' ? (
+            <Calendar
+              minDate={toDateString(new Date())}
+              markedDates={markedDates}
+              markingType="period"
+              onDayPress={handleWebDayPress}
+              enableSwipeMonths={false}
+              theme={{
+                todayTextColor: '#3b82f6',
+                selectedDayBackgroundColor: '#3b82f6',
+                selectedDayTextColor: '#ffffff',
+                arrowColor: '#3b82f6',
+                monthTextColor: '#111827',
+                textDayFontWeight: '400',
+                textMonthFontWeight: '600',
+              }}
+              style={styles.calendar}
+            />
           ) : (
             <CalendarDragContext.Provider value={calendarDragContextValue}>
               <Calendar
@@ -433,6 +485,7 @@ export const RentItemScreen: React.FC<Props> = ({ route, navigation }) => {
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 setStartDate(today);
                 setEndDate(tomorrow);
+                setWebSelectionStep('start');
                 setAvailabilityChecked(false);
                 setAvailabilityMessage(null);
               }}
