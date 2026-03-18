@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
-  ActivityIndicator,
   Button,
-  FlatList,
+  Image,
   ImageBackground,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -19,11 +17,18 @@ import {
 } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { AUTH0_ENABLED } from './auth/featureFlags';
+import { ItemsProvider } from './context/ItemsContext';
+import type { ItemListing } from './types/database';
 import { LoginScreen } from './screens/LoginScreen';
+import { AddItemScreen } from './screens/AddItemScreen';
+import { ListingScreen } from './screens/ListingScreen';
+
 
 type AppStackParamList = {
   Home: undefined;
-  Details: { item: TodoItem };
+  Listing: undefined;
+  AddItem: undefined;
+  Details: { item: ItemListing };
 };
 
 type AuthStackParamList = {
@@ -33,73 +38,10 @@ type AuthStackParamList = {
 type HomeScreenProps = NativeStackScreenProps<AppStackParamList, 'Home'>;
 type DetailsScreenProps = NativeStackScreenProps<AppStackParamList, 'Details'>;
 
-type TodoItem = {
-  id: string;
-  name: string;
-  description: string;
-  dailyRate: string;
-  availableDate: string;
-};
-
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [dailyRate, setDailyRate] = useState('');
-  const [availableDate, setAvailableDate] = useState('');
-  const [items, setItems] = useState<TodoItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const addItem = () => {
-    if (!name.trim()) {
-      return;
-    }
-
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        name: name.trim(),
-        description: description.trim(),
-        dailyRate: dailyRate.trim(),
-        availableDate: availableDate.trim(),
-      },
-    ]);
-
-    setName('');
-    setDescription('');
-    setDailyRate('');
-    setAvailableDate('');
-  };
-
-  const fetchExampleData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('https://jsonplaceholder.typicode.com/todos?_limit=5');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data: { id: number; title: string }[] = await response.json();
-      setItems(
-        data.map((d) => ({
-          id: `remote-${d.id}`,
-          name: d.title,
-          description: '',
-          dailyRate: '',
-          availableDate: '',
-        })),
-      );
-    } catch (e) {
-      setError('Failed to load data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <ImageBackground
       source={require('./assets/ATVDiscer.jpg')}
@@ -111,75 +53,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={styles.title}>Bohachicks first mobile app written by himself</Text>
         </View>
 
-        <View style={styles.form}>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Name"
-            style={styles.input}
-          />
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Description"
-            style={styles.input}
-          />
-          <TextInput
-            value={dailyRate}
-            onChangeText={setDailyRate}
-            placeholder="Daily Rate"
-            keyboardType="numeric"
-            style={styles.input}
-          />
-          <TextInput
-            value={availableDate}
-            onChangeText={setAvailableDate}
-            placeholder="Item Available Date"
-            style={styles.input}
-          />
+        <View style={styles.landingContent}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate('Listing')}
+          >
+            <Text style={styles.primaryButtonText}>Find something to rent</Text>
+          </TouchableOpacity>
 
           <View style={styles.actionsRow}>
-            <Button title="Add" onPress={addItem} />
+            <Button
+              title="Add Item"
+              onPress={() => navigation.navigate('AddItem')}
+            />
           </View>
         </View>
-
-        <View style={styles.actionsRow}>
-          <Button title="Load from API" onPress={fetchExampleData} />
-        </View>
-
-        {loading && (
-          <View style={styles.centerContent}>
-            <ActivityIndicator size="small" />
-          </View>
-        )}
-
-        {error && <Text style={styles.errorText}>{error}</Text>}
-
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('Details', { item })
-              }
-              style={styles.listItem}
-            >
-              <Text style={styles.listItemText}>{item.name}</Text>
-              {!!item.description && (
-                <Text style={styles.listItemSubText}>{item.description}</Text>
-              )}
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            !loading ? (
-              <Text style={styles.emptyText}>
-                No items yet. Add one above or load from API.
-              </Text>
-            ) : null
-          }
-        />
 
         <StatusBar style="auto" />
       </SafeAreaView>
@@ -190,22 +78,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const DetailsScreen: React.FC<DetailsScreenProps> = ({ route, navigation }) => {
   const { item } = route.params;
 
-  const formattedRate =
-    item.dailyRate && !Number.isNaN(Number(item.dailyRate))
-      ? new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-        }).format(Number(item.dailyRate))
-      : item.dailyRate || 'N/A';
+  const formattedPrice = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(item.pricePerDay);
 
   const formattedDate = item.availableDate
     ? (() => {
         const parsed = new Date(item.availableDate);
-        return Number.isNaN(parsed.getTime())
-          ? item.availableDate
-          : parsed.toLocaleDateString();
+        return Number.isNaN(parsed.getTime()) ? item.availableDate : parsed.toLocaleDateString();
       })()
     : 'N/A';
+
+  const attrs = item.attributes ?? {};
+  const { renter: _r, latitude: _lat, longitude: _lng, ...customAttrs } = attrs;
+  const hasCustomAttrs = Object.keys(customAttrs).length > 0;
 
   return (
     <ImageBackground
@@ -218,17 +105,60 @@ const DetailsScreen: React.FC<DetailsScreenProps> = ({ route, navigation }) => {
           <Text style={styles.title}>Details</Text>
         </View>
         <View style={styles.centerContent}>
-          <Text style={styles.detailsLabel}>Name</Text>
-          <Text style={styles.detailsText}>{item.name || 'N/A'}</Text>
+          <Text style={styles.detailsLabel}>Title</Text>
+          <Text style={styles.detailsText}>{item.title}</Text>
 
           <Text style={styles.detailsLabel}>Description</Text>
-          <Text style={styles.detailsText}>{item.description || 'N/A'}</Text>
+          <Text style={styles.detailsText}>{item.description}</Text>
 
-          <Text style={styles.detailsLabel}>Daily Rate</Text>
-          <Text style={styles.detailsText}>{formattedRate}</Text>
+          <Text style={styles.detailsLabel}>Category</Text>
+          <Text style={styles.detailsText}>{item.category}</Text>
 
-          <Text style={styles.detailsLabel}>Item Available Date</Text>
+          <Text style={styles.detailsLabel}>Price Per Day</Text>
+          <Text style={styles.detailsText}>{formattedPrice}</Text>
+
+          <Text style={styles.detailsLabel}>Status</Text>
+          <Text style={styles.detailsText}>{item.status}</Text>
+
+          <Text style={styles.detailsLabel}>Renter</Text>
+          <Text style={styles.detailsText}>{String(item.attributes?.renter ?? 'N/A')}</Text>
+
+          <Text style={styles.detailsLabel}>Available Date</Text>
           <Text style={styles.detailsText}>{formattedDate}</Text>
+
+          {item.location && (
+            <>
+              <Text style={styles.detailsLabel}>Location</Text>
+              <Text style={styles.detailsText}>
+                {item.location.latitude.toFixed(5)}, {item.location.longitude.toFixed(5)}
+              </Text>
+            </>
+          )}
+
+          {hasCustomAttrs && (
+            <>
+              <Text style={styles.detailsLabel}>Attributes</Text>
+              {Object.entries(customAttrs).map(([key, value]) => (
+                <Text key={key} style={styles.detailsText}>
+                  {key}: {String(value)}
+                </Text>
+              ))}
+            </>
+          )}
+
+          {item.images && item.images.length > 0 && (
+            <>
+              <Text style={styles.detailsLabel}>Images</Text>
+              {item.images.map((uri: string, i: number) => (
+                <Image
+                  key={i}
+                  source={{ uri }}
+                  style={styles.detailImage}
+                  resizeMode="cover"
+                />
+              ))}
+            </>
+          )}
         </View>
         <View style={styles.actionsRow}>
           <Button title="Go back" onPress={() => navigation.goBack()} />
@@ -242,6 +172,8 @@ const AppStackNavigator: React.FC = () => {
   return (
     <AppStack.Navigator>
       <AppStack.Screen name="Home" component={HomeScreen} />
+      <AppStack.Screen name="Listing" component={ListingScreen} options={{ title: 'Listings' }} />
+      <AppStack.Screen name="AddItem" component={AddItemScreen} options={{ title: 'Add Item' }} />
       <AppStack.Screen name="Details" component={DetailsScreen} />
     </AppStack.Navigator>
   );
@@ -271,9 +203,11 @@ const RootNavigator: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
+      <ItemsProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </ItemsProvider>
     </AuthProvider>
   );
 };
@@ -314,8 +248,25 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
     backgroundColor: '#ffffff',
   },
-  actionsRow: {
+  landingContent: {
+    flex: 1,
     paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  primaryButton: {
+    backgroundColor: '#3b82f6',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  actionsRow: {
     paddingBottom: 8,
   },
   centerContent: {
@@ -364,10 +315,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 16,
   },
-  form: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+  detailImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 8,
+    marginVertical: 4,
   },
   listItemSubText: {
     fontSize: 14,

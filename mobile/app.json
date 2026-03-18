@@ -14,6 +14,19 @@
     },
     "plugins": [
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "This app needs your location to set rental location when adding items and to filter by distance.",
+          "locationAlwaysAndWhenInUsePermission": "This app needs your location to set rental location when adding items and to filter by distance."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "This app needs access to your photos to add images to items."
+        }
+      ],
+      [
         "react-native-auth0",
         {
           "domain": "YOUR_TENANT_REGION.auth0.com",
