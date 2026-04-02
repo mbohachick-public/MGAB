@@ -18,7 +18,7 @@ import {
   NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './auth/AuthContext';
-import { AUTH0_ENABLED } from './auth/featureFlags';
+import { AUTH0_ENABLED, OWNER_USER_ID } from './auth/featureFlags';
 import { ResponsiveContainer } from './components/ResponsiveContainer';
 import { ItemsProvider } from './context/ItemsContext';
 import type { ItemListing } from './types/database';
@@ -27,12 +27,15 @@ import { AddItemScreen } from './screens/AddItemScreen';
 import { ListingScreen } from './screens/ListingScreen';
 import { RentItemScreen } from './screens/RentItemScreen';
 import { BookingInvoiceScreen } from './screens/BookingInvoiceScreen';
+import { MyBookingsScreen } from './screens/MyBookingsScreen';
+import { CancellationInvoiceScreen } from './screens/CancellationInvoiceScreen';
 import type { RentalDate } from './types/database';
 
 type AppStackParamList = {
   Home: undefined;
   Listing: undefined;
   AddItem: undefined;
+  MyBookings: undefined;
   Details: { item: ItemListing };
   RentItem: { item: ItemListing };
   BookingInvoice: {
@@ -40,6 +43,11 @@ type AppStackParamList = {
     booking: RentalDate;
     days: number;
     totalPrice: number;
+  };
+  CancellationInvoice: {
+    item: { id: string; title: string; pricePerDay: number };
+    booking: RentalDate;
+    feeAmount: number;
   };
 };
 
@@ -54,6 +62,9 @@ const AppStack = createNativeStackNavigator<AppStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  const { user } = useAuth();
+  const isOwner = user?.id === OWNER_USER_ID;
+
   if (Platform.OS === 'web') {
     return (
       <View style={webStyles.page}>
@@ -66,11 +77,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             >
               <Text style={webStyles.navLinkText}>Browse</Text>
             </TouchableOpacity>
+            {isOwner && (
+              <TouchableOpacity
+                style={[webStyles.navLink, webStyles.navLinkPrimary]}
+                onPress={() => navigation.navigate('AddItem')}
+              >
+                <Text style={webStyles.navLinkPrimaryText}>Add Item</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
-              style={[webStyles.navLink, webStyles.navLinkPrimary]}
-              onPress={() => navigation.navigate('AddItem')}
+              style={webStyles.navLink}
+              onPress={() => navigation.navigate('MyBookings')}
             >
-              <Text style={webStyles.navLinkPrimaryText}>Add Item</Text>
+              <Text style={webStyles.navLinkText}>My Bookings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={webStyles.navLink}
+              onPress={() => navigation.navigate('Home')}
+            >
+              <Text style={webStyles.navLinkText}>Home</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -117,12 +142,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Text style={styles.primaryButtonText}>Find something to rent</Text>
           </TouchableOpacity>
 
-          <View style={styles.actionsRow}>
-            <Button
-              title="Add Item"
-              onPress={() => navigation.navigate('AddItem')}
-            />
-          </View>
+          {isOwner && (
+            <View style={styles.actionsRow}>
+              <Button
+                title="Add Item"
+                onPress={() => navigation.navigate('AddItem')}
+              />
+            </View>
+          )}
         </View>
 
         <StatusBar style="auto" />
@@ -133,6 +160,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
 const DetailsScreen: React.FC<DetailsScreenProps> = ({ route, navigation }) => {
   const { item } = route.params;
+  const { user } = useAuth();
+  const isOwner = user?.id === OWNER_USER_ID;
 
   const formattedPrice = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -163,11 +192,19 @@ const DetailsScreen: React.FC<DetailsScreenProps> = ({ route, navigation }) => {
             >
               <Text style={webStyles.navLinkText}>Browse</Text>
             </TouchableOpacity>
+            {isOwner && (
+              <TouchableOpacity
+                style={webStyles.navLink}
+                onPress={() => navigation.navigate('AddItem')}
+              >
+                <Text style={webStyles.navLinkText}>Add Item</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={webStyles.navLink}
-              onPress={() => navigation.navigate('AddItem')}
+              onPress={() => navigation.navigate('MyBookings')}
             >
-              <Text style={webStyles.navLinkText}>Add Item</Text>
+              <Text style={webStyles.navLinkText}>My Bookings</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={webStyles.navLink}
@@ -341,6 +378,7 @@ const AppStackNavigator: React.FC = () => {
       <AppStack.Screen name="Home" component={HomeScreen} />
       <AppStack.Screen name="Listing" component={ListingScreen} options={{ title: 'Listings' }} />
       <AppStack.Screen name="AddItem" component={AddItemScreen} options={{ title: 'Add Item' }} />
+      <AppStack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: 'My Bookings' }} />
       <AppStack.Screen name="Details" component={DetailsScreen} />
       <AppStack.Screen
         name="RentItem"
@@ -351,6 +389,11 @@ const AppStackNavigator: React.FC = () => {
         name="BookingInvoice"
         component={BookingInvoiceScreen}
         options={{ title: 'Booking Invoice', headerBackVisible: false }}
+      />
+      <AppStack.Screen
+        name="CancellationInvoice"
+        component={CancellationInvoiceScreen}
+        options={{ title: 'Cancellation Fee' }}
       />
     </AppStack.Navigator>
   );

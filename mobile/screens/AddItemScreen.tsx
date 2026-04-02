@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { OWNER_USER_ID } from '../auth/featureFlags';
 import {
   Alert,
   Button,
@@ -22,6 +24,7 @@ import type { ItemListing } from '../types/database';
 
 type AppStackParamList = {
   Home: undefined;
+  Listing: undefined;
   AddItem: undefined;
   Details: { item: ItemListing };
 };
@@ -34,7 +37,19 @@ const CATEGORIES = ['Equipment', 'Vehicles', 'Electronics', 'Tools', 'Other'];
 type CustomField = { key: string; value: string };
 
 export const AddItemScreen: React.FC<Props> = ({ navigation }) => {
+  const { user } = useAuth();
   const { addItem } = useItems();
+  const isOwner = user?.id === OWNER_USER_ID;
+
+  useEffect(() => {
+    if (isOwner === false) {
+      navigation.replace('Home');
+    }
+  }, [isOwner, navigation]);
+
+  if (!isOwner) {
+    return null;
+  }
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [pricePerDay, setPricePerDay] = useState('');

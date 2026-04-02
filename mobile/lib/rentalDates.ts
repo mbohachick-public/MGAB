@@ -95,3 +95,71 @@ export async function createRentalBooking(input: CreateRentalBookingInput): Prom
   if (error) throw error;
   return rowToRentalDate(data as RentalDateRow);
 }
+
+const CANCELLATION_WINDOW_DAYS = 2;
+const CANCELLATION_FEE_DAYS = 1;
+
+/** Check if a booking is within the free cancellation window (2 days before start) */
+export function isWithinCancellationWindow(startDate: string): boolean {
+  const start = new Date(startDate);
+  const now = new Date();
+  const diffMs = start.getTime() - now.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  return diffDays >= CANCELLATION_WINDOW_DAYS;
+}
+
+/** Get cancellation fee (1 day of rental price) */
+export function getCancellationFeeDays(): number {
+  return CANCELLATION_FEE_DAYS;
+}
+
+export type UserBooking = {
+  booking: RentalDate;
+  item: { id: string; title: string; pricePerDay: number };
+};
+
+/** Fetch all bookings for a user (status = booked) */
+export async function fetchUserBookings(renterUserId: string): Promise<UserBooking[]> {
+  const { data: datesData, error: datesError } = await supabase
+    .from('rental_dates')
+    .select('*')
+    .eq('renter_user_id', renterUserId)
+    .eq('status', 'booked')
+    .order('start_date', { ascending: true });
+
+  if (datesError) throw datesError;
+  if (!datesData?.length) return [];
+
+  const itemIds = [...new Set((datesData as RentalDateRow[]).map((r) => r.item_listing_id))];
+  const { data: itemsData, error: itemsError } = await supabase
+    .from('item_listings')
+    .select('id, title, price_per_day')
+    .in('id', itemIds);
+
+  if (itemsError) throw itemsError;
+  const itemsMap = new Map(
+    (itemsData ?? []).map((r: { id: string; title: string; price_per_day: number }) => [
+      r.id,
+      { id: r.id, title: r.title, pricePerDay: r.price_per_day },
+    ])
+  );
+
+  return (datesData as RentalDateRow[]).map((r) => ({
+    booking: rowToRentalDate(r),
+    item: itemsMap.get(r.item_listing_id) ?? {
+      id: r.item_listing_id,
+      title: 'Unknown',
+      pricePerDay: 0,
+    },
+  }));
+}
+
+/** Cancel a booking (set status to cancelled). Caller must verify ownership and cancellation rules. */
+export async function cancelBooking(bookingId: string): Promise<void> {
+  const { error } = await supabase
+    .from('rental_dates')
+    .update({ status: 'cancelled' })
+    .eq('id', bookingId);
+
+  if (error) throw error;
+}

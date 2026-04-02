@@ -17,6 +17,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 import * as Location from 'expo-location';
+import { useAuth } from '../auth/AuthContext';
+import { OWNER_USER_ID } from '../auth/featureFlags';
 import { useItems } from '../context/ItemsContext';
 import type { ItemListing } from '../types/database';
 import { distanceInMiles } from '../utils/location';
@@ -25,6 +27,7 @@ type AppStackParamList = {
   Home: undefined;
   Listing: undefined;
   AddItem: undefined;
+  MyBookings: undefined;
   Details: { item: ItemListing };
 };
 
@@ -61,6 +64,8 @@ const formatDate = (item: ItemListing) => {
 };
 
 export const ListingScreen: React.FC<Props> = ({ navigation }) => {
+  const { user } = useAuth();
+  const isOwner = user?.id === OWNER_USER_ID;
   const { items, loading, error, refreshItems } = useItems();
   const [showFilters, setShowFilters] = useState(false);
   const [webFiltersCollapsed, setWebFiltersCollapsed] = useState(false);
@@ -452,11 +457,19 @@ export const ListingScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
           <View style={webStyles.navLinks}>
             <Text style={webStyles.navLinkActive}>Browse</Text>
+            {isOwner && (
+              <TouchableOpacity
+                style={webStyles.navLink}
+                onPress={() => navigation.navigate('AddItem')}
+              >
+                <Text style={webStyles.navLinkText}>Add Item</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={webStyles.navLink}
-              onPress={() => navigation.navigate('AddItem')}
+              onPress={() => navigation.navigate('MyBookings')}
             >
-              <Text style={webStyles.navLinkText}>Add Item</Text>
+              <Text style={webStyles.navLinkText}>My Bookings</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={webStyles.navLink}
